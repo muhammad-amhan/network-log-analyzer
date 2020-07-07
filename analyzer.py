@@ -1,6 +1,7 @@
 import re
 import sys
 from typing import Dict, List, Any
+import argparse
 
 # Creating regular expressions (regex) to filter out the target log
 INTERFACES_PATTERN = 'LINK-3-UPDOWN.*Interface\s([a-zA-Z]*[0-9]\/[0-9]+).*(down|up)'
@@ -153,22 +154,41 @@ class LogAnalyzer:
         return blocked_icmp_packets
 
 
-if __name__ == '__main__':
-    log_file = 'router1.log'
+def run():
+    argv = sys.argv[1:]
+
+    parser = argparse.ArgumentParser(
+        prog='analyzer',
+        epilog='Thanks for giving it a try :)',
+        usage='%(prog)s [-h] PATH'
+    )
+    parser.add_argument('file', metavar='path', type=str, help='Path to the network log file')
+
+    if len(argv) > 1:
+        parser.print_help()
+        sys.exit(1)
+
+    args = vars(parser.parse_args())
+    log_file = args.get('file')
 
     # Open and read the log file
     try:
         with open(log_file, 'r') as file:
             logs = file.readlines()
+
     except FileNotFoundError as e:
-        print(f'File not found {log_file}')
+        print(f'File not found "{log_file}"')
+        sys.exit(1)
+
+    except Exception:
+        print(f'Please make sure you have read permission and that it is a valid log file "e.g. example.log, example.txt"')
         sys.exit(1)
 
     analyzer = LogAnalyzer(logs)
 
     top_5_interfaces_up, top_5_interfaces_down = analyzer.analyze_network_interfaces()
-    print('Top 5 Interfaces According to The Number of Downs\t\t\t\t:', top_5_interfaces_up)
-    print('Top 5 Interfaces According to The Number of Ups\t\t\t\t\t:', top_5_interfaces_down)
+    print('Top 5 Network Interfaces According to The Number of Downs\t\t:', top_5_interfaces_up)
+    print('Top 5 Network Interfaces According to The Number of Ups\t\t\t:', top_5_interfaces_down)
 
     top_20_blocked_ip_Address = analyzer.analyze_blocked_ip_addresses()
     print('Top 20 Blocked IP Addresses and The Number of Their TCP Packets :', top_20_blocked_ip_Address)
@@ -178,3 +198,7 @@ if __name__ == '__main__':
 
     blocked_icmp_packets = analyzer.analyze_blocked_icmp_packets()
     print('Total Number of Blocked ICMP Packets\t\t\t\t\t\t\t:', blocked_icmp_packets)
+
+
+if __name__ == '__main__':
+    run()
