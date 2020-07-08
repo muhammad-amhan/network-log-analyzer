@@ -1,11 +1,11 @@
 import re
 import sys
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Pattern
 import argparse
 
 # Creating regular expressions (regex) to filter out the target log
-INTERFACES_PATTERN = 'LINK-3-UPDOWN.*Interface\s([a-zA-Z]*[0-9]\/[0-9]+).*(down|up)'
-INTERFACES_PATTERN_COMPILED = re.compile(INTERFACES_PATTERN)
+NETWORK_INTERFACES_PATTERN = 'LINK-3-UPDOWN.*Interface\s([a-zA-Z]*[0-9]\/[0-9]+).*(down|up)'
+NETWORK_INTERFACES_PATTERN_COMPILED = re.compile(NETWORK_INTERFACES_PATTERN)
 
 BLOCKED_IP_ADDRESSES_PATTERN = 'SEC-6-IPACCESSLOGP.*denied\stcp\s([0-9.]+).*([0-9]+)'
 BLOCKED_IP_ADDRESSES_PATTERN_COMPILED = re.compile(BLOCKED_IP_ADDRESSES_PATTERN)
@@ -31,6 +31,17 @@ class LogAnalyzer:
         """
         self.logs = logs
 
+    def search(self, pattern: Pattern):
+        # Create a generator to efficiently handle large data
+        log_info = (line for line in self.logs)
+
+        # Loop through each line in the log data and enforce the network interface regex
+        return [
+            pattern.search(line)
+            for line in log_info
+            if pattern.search(line)
+        ]
+
     def analyze_network_interfaces(self):
         """
         :return top 5 network interfaces whose state was up, and top 5 interfaces whose state was down and how many times
@@ -39,16 +50,10 @@ class LogAnalyzer:
             'up': {},
             'down': {},
         }
-
-        # Create a generator to efficiently handle large data
-        log_info = (line for line in self.logs)
-
         # Loop through each line in the log data and enforce the network interface regex
-        for line in log_info:
-            match = INTERFACES_PATTERN_COMPILED.search(line)
-            if match is None:
-                continue
+        matches = self.search(NETWORK_INTERFACES_PATTERN_COMPILED)
 
+        for match in matches:
             # Capture the first and second groups in the matched line
             # First group :  interface name
             # Second group:  state (up or down)
@@ -90,14 +95,9 @@ class LogAnalyzer:
         :return: top 20 blocked (denied) TCP/IP addresses and the total number of their packets
         """
         blocked_ip_address = {}
-        # Python generator
-        log_info = (line for line in self.logs)
+        matches = self.search(BLOCKED_IP_ADDRESSES_PATTERN_COMPILED)
 
-        for line in log_info:
-            match = BLOCKED_IP_ADDRESSES_PATTERN_COMPILED.search(line)
-            if match is None:
-                continue
-
+        for match in matches:
             # First group : source IP address
             # Second group: number of packets denied
             source_ip = match.group(1)
@@ -118,13 +118,9 @@ class LogAnalyzer:
         :return: Inconsistent local VLAN causing spanning tree problems and how many times they occurred
         """
         span_tree_vlan = {}
-        log_info = (line for line in self.logs)
+        matches = self.search(SPAN_TREE_VLAN_PATTERN_COMPILED)
 
-        for line in log_info:
-            match = SPAN_TREE_VLAN_PATTERN_COMPILED.search(line)
-            if match is None:
-                continue
-
+        for match in matches:
             # First group: VLAN name
             vlan = match.group(1)
 
@@ -142,13 +138,9 @@ class LogAnalyzer:
         :return: the total number of ICMP packets denied
         """
         blocked_icmp_packets = 0
-        log_info = (line for line in self.logs)
+        matches = self.search(BLOCKED_ICMP_PACKETS_PATTERN_COMPILED)
 
-        for line in log_info:
-            match = BLOCKED_ICMP_PACKETS_PATTERN_COMPILED.search(line)
-            if match is None:
-                continue
-
+        for match in matches:
             blocked_icmp_packets += int(match.group(1))
 
         return blocked_icmp_packets
