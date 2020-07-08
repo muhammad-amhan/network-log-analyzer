@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 from typing import Dict, List, Any, Pattern
@@ -154,7 +155,7 @@ def run():
         epilog='Thanks for giving it a try :)',
         usage='%(prog)s [-h] PATH'
     )
-    parser.add_argument('file', metavar='path', type=str, help='Path to the network log file')
+    parser.add_argument('file', metavar='path', type=str, help='Path to the network log file e.g. *.txt, *.log')
 
     if len(argv) > 1:
         parser.print_help()
